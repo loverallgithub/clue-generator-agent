@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  clue-generator-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: clue-generator-agent
+    restart: unless-stopped
+    
+    environment:
+      # PostgreSQL connection to existing container
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-koopjesjacht}
+      DB_USER: ${DB_USER:-koopjesjacht}
+      DB_PASSWORD: ${DB_PASSWORD:-koopjesjacht}
+      
+      # Server configuration
+      PORT: 9005
+      NODE_ENV: production
+    
+    ports:
+      # Expose HTTP API for nginx reverse proxy
+      - "9005:9005"
+    
+    # Connect to existing network where PostgreSQL is running
+    networks:
+      - koopjesjacht-network
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+# Use existing network where PostgreSQL container is running
+networks:
+  koopjesjacht-network:
+    external: true
+    name: koopjesjacht-network
